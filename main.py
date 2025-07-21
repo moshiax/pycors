@@ -4,6 +4,9 @@ from flask import Flask, request, jsonify
 import time
 import aiohttp
 from aiohttp import ClientTimeout, ClientError, ClientConnectionError
+from urllib.parse import urlparse
+import socket
+import ipaddress
 
 app = Flask(__name__)
 
@@ -15,6 +18,26 @@ RATE_LIMIT = {
 }
 
 request_counts = defaultdict(list)
+
+def is_safe_url(url):
+    try:
+        parsed = urlparse(url)
+        if not parsed.scheme or not parsed.netloc:
+            return False
+
+        host = parsed.hostname
+        ip = socket.gethostbyname(host)
+        ip_obj = ipaddress.ip_address(ip)
+
+        return not (
+            ip_obj.is_private or 
+            ip_obj.is_loopback or 
+            ip_obj.is_link_local or
+            ip_obj.is_reserved or
+            ip_obj.is_multicast
+        )
+    except Exception:
+        return False
 
 @app.before_request
 def limit_request_size_and_rate_limit():
@@ -41,6 +64,9 @@ async def proxy():
     
     if not target_url:
         return jsonify({"error": "URL parameter is missing", "message": "Provide a valid 'url' parameter."}), 400
+
+    if not is_safe_url(target_url):
+        return jsonify({"error": "Forbidden URL", "message": "This URL is not allowed."}), 403
 
     timeout = ClientTimeout(total=RATE_LIMIT['REQUEST_TIMEOUT'])
 
