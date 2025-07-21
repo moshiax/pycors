@@ -90,4 +90,4 @@ async def proxy():
         return jsonify({"error": "Unknown error", "message": f"An unexpected error occurred: {str(e)}"}), 500
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=7777, debug=True)
+    app.run(host="0.0.0.0", port=7777, debug=False)
